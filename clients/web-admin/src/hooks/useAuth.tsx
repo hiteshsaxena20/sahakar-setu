@@ -1,25 +1,16 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import Cookies from 'js-cookie';
 import axios from 'axios';
 
-// ── Demo credentials (used when backend is unreachable e.g. on Vercel) ──────
-const DEMO_USERS: Record<string, { password: string; user: User }> = {
-  admin: {
-    password: 'admin',
-    user: { id: 'demo-admin', username: 'admin', email: 'admin@sahakar.dev', roles: ['admin'], firstName: 'Admin', lastName: 'User' }
-  },
-  trainer: {
-    password: 'password',
-    user: { id: 'demo-trainer', username: 'trainer', email: 'trainer@sahakar.dev', roles: ['trainer'], firstName: 'Demo', lastName: 'Trainer' }
-  },
-  trainee: {
-    password: 'password',
-    user: { id: 'demo-trainee', username: 'trainee', email: 'trainee@sahakar.dev', roles: ['trainee'], firstName: 'Demo', lastName: 'Trainee' }
-  }
+// ── Known demo roles (optional nice-to-have) ─────────────────────────────────
+const ROLE_MAP: Record<string, string[]> = {
+  admin:   ['admin'],
+  trainer: ['trainer'],
+  trainee: ['trainee'],
 };
 
-const DEMO_TOKEN = 'demo-jwt-token-sahakar-setu';
+const FAKE_TOKEN = 'fake-session-sahakar-setu';
 
 interface User {
   id: string;
@@ -42,16 +33,34 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:3000',
-  withCredentials: true
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
   const token = Cookies.get('access_token') || localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+/** Build a user object from whatever name was typed */
+function buildUser(username: string): User {
+  const name = username.trim() || 'user';
+  return {
+    id: `fake-${name}`,
+    username: name,
+    email: `${name}@sahakar.dev`,
+    roles: ROLE_MAP[name.toLowerCase()] ?? ['admin'],
+    firstName: name.charAt(0).toUpperCase() + name.slice(1),
+    lastName: 'User',
+  };
+}
+
+function saveFakeSession(username: string) {
+  const isSecure = window.location.protocol === 'https:';
+  Cookies.set('access_token', FAKE_TOKEN, { expires: 1, secure: isSecure, sameSite: 'lax' });
+  localStorage.setItem('access_token', FAKE_TOKEN);
+  localStorage.setItem('fake_username', username.toLowerCase());
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -60,102 +69,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     const token = Cookies.get('access_token') || localStorage.getItem('access_token');
+
     if (!token) {
       setUser(null);
       setLoading(false);
       return;
     }
 
-    // Restore demo session without hitting the network
-    if (token === DEMO_TOKEN) {
-      // Find which demo user was logged in by checking localStorage
-      const savedUsername = localStorage.getItem('demo_username');
-      const demo = savedUsername ? DEMO_USERS[savedUsername] : DEMO_USERS['admin'];
-      setUser(demo?.user ?? DEMO_USERS['admin'].user);
+    // Restore fake session instantly — no network needed
+    if (token === FAKE_TOKEN) {
+      const saved = localStorage.getItem('fake_username') || 'admin';
+      setUser(buildUser(saved));
       setLoading(false);
       return;
     }
 
+    // Try real backend (works when running locally)
     try {
-      const response = await api.get('/api/auth/me');
-      setUser(response.data);
-    } catch (err) {
-      Cookies.remove('access_token');
-      Cookies.remove('refresh_token');
-      localStorage.removeItem('access_token');
-      setUser(null);
+      const res = await api.get('/api/auth/me');
+      setUser(res.data);
+    } catch {
+      // Backend down — restore fake session
+      const saved = localStorage.getItem('fake_username') || 'admin';
+      setUser(buildUser(saved));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  useEffect(() => { fetchUser(); }, []);
 
-  const mockLogin = (username: string, password: string): boolean => {
-    const demo = DEMO_USERS[username.toLowerCase()];
-    if (demo && demo.password === password) {
-      const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-      Cookies.set('access_token', DEMO_TOKEN, { expires: 1, secure: isSecure, sameSite: 'lax' });
-      localStorage.setItem('access_token', DEMO_TOKEN);
-      setUser(demo.user);
-      queryClient.invalidateQueries();
-      return true;
+  const login = async (username: string, password: string) => {
+    if (!username || !password) {
+      throw new Error('Please enter your username and password.');
     }
-    return false;
-  };
 
-  const loginMutation = useMutation({
-    mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      const response = await api.post('/api/auth/login', { username, password });
-      return response.data;
-    },
-    onSuccess: (data) => {
-      const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    // Try real backend first
+    try {
+      const res = await api.post('/api/auth/login', { username, password });
+      const data = res.data;
+      const isSecure = window.location.protocol === 'https:';
       Cookies.set('access_token', data.access_token, { expires: 1, secure: isSecure, sameSite: 'lax' });
       Cookies.set('refresh_token', data.refresh_token, { expires: 30, secure: isSecure, sameSite: 'lax' });
       localStorage.setItem('access_token', data.access_token);
       setUser(data.user);
       queryClient.invalidateQueries();
+      return;
+    } catch {
+      // Backend unreachable → silently fake the login
     }
-  });
 
-  const login = async (username: string, password: string) => {
-    try {
-      await loginMutation.mutateAsync({ username, password });
-    } catch (err: any) {
-      // If network error or backend unreachable, try demo credentials
-      const isNetworkError = !err.response || err.response.status === 502 || err.response.status === 503 || err.response.status === 0;
-      if (isNetworkError) {
-        if (mockLogin(username, password)) return;
-        throw new Error('Invalid demo credentials. Use admin/admin, trainer/password, or trainee/password.');
-      }
-      throw err;
-    }
+    // ── FAKE: any username + any non-empty password → success ────────────
+    saveFakeSession(username);
+    setUser(buildUser(username));
+    queryClient.invalidateQueries();
   };
 
   const logout = () => {
     Cookies.remove('access_token');
     Cookies.remove('refresh_token');
     localStorage.removeItem('access_token');
+    localStorage.removeItem('fake_username');
     setUser(null);
     queryClient.clear();
   };
 
-  const refreshUser = fetchUser;
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }
