@@ -58,7 +58,8 @@
       "applications": "Applications",
       "employers": "Employers",
       "chatbot": "Career Guide",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "settings": "Settings"
     },
     "erp": {
       "create_programme": "Create Programme",
@@ -161,10 +162,12 @@
       "dashboard_subtitle": "National Cooperative Training Dashboard & Performance Overview",
       "enrollment_trends": "Enrollment Trends",
       "dropout_rate": "Dropout Rate",
+      "dropout_heatmap": "Dropout Trends & Distribution",
       "placement_rate": "Placement Rate",
       "placement_rates": "Placement Rates",
       "region_heatmap": "Region Heatmap",
       "completion_rate": "Completion Rate",
+      "completion_rates": "Completion Benchmark Rates",
       "total_trainees": "Total Trainees",
       "active_programmes": "Active Programmes",
       "total_certificates": "Certificates Issued",

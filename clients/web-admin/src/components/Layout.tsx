@@ -90,7 +90,12 @@ export function Layout() {
                 onClick={() => setSidebarOpen(false)}
               >
                 <item.icon className="w-5 h-5" />
-                {t(`navigation.${item.name}`) || item.name}
+                {(() => {
+                  const label = t(`navigation.${item.name}`);
+                  return label && !label.startsWith('navigation.')
+                    ? label
+                    : item.name.charAt(0).toUpperCase() + item.name.slice(1);
+                })()}
               </NavLink>
             ))}
           </nav>

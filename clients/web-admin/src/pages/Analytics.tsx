@@ -93,19 +93,27 @@ export function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <div className="card-header">
-            <h3 className="text-lg font-semibold text-gray-900">{t('analytics.dropout_heatmap')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {t('analytics.dropout_heatmap') && !t('analytics.dropout_heatmap').startsWith('analytics.')
+                ? t('analytics.dropout_heatmap')
+                : 'Dropout Trends & Distribution'}
+            </h3>
           </div>
           <div className="card-body">
-            <ChartPlaceholder height={300} title={t('analytics.dropout_heatmap')} />
+            <ChartPlaceholder height={300} title="dropout_heatmap" />
           </div>
         </Card>
 
         <Card>
           <div className="card-header">
-            <h3 className="text-lg font-semibold text-gray-900">{t('analytics.completion_rates')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {t('analytics.completion_rates') && !t('analytics.completion_rates').startsWith('analytics.')
+                ? t('analytics.completion_rates')
+                : 'Completion Benchmark Rates'}
+            </h3>
           </div>
           <div className="card-body">
-            <ChartPlaceholder height={300} title={t('analytics.completion_rates')} />
+            <ChartPlaceholder height={300} title="completion_rates" />
           </div>
         </Card>
       </div>
