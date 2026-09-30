@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "name": "sahakar-setu-web-admin",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "env": {
+    "VITE_API_GATEWAY_URL": "@vite_api_gateway_url"
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "realm": "sahakar",
+  "enabled": true,
+  "displayName": "Sahakar Setu / NCCT-Connect",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "roles": {
+    "realm": [
+      {
+        "name": "ncct_admin",
+        "description": "National-level administrator with full access",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      },
+      {
+        "name": "institution_admin",
+        "description": "VAMNICOM/RICM/ICM institution administrator",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      },
+      {
+        "name": "trainer",
+        "description": "Course trainer - can manage content, assessments, attendance",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      },
+      {
+        "name": "trainee",
+        "description": "Trainee/participant - can enroll, learn, take assessments",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      },
+      {
+        "name": "employer",
+        "description": "Employer - can post jobs, view candidates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      },
+      {
+        "name": "recruiter",
+        "description": "Recruiter - can review applications, schedule interviews",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "sahakar"
+      }
+    ],
+    "client": {}
+  },
+  "clients": [
+    {
+      "clientId": "api-gateway",
+      "name": "API Gateway",
+      "description": "Central API Gateway for all services",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "api-gateway-secret-change-in-production",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "web-admin",
+      "name": "Web Admin Dashboard",
+      "description": "React-based admin dashboard",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "web-admin-secret-change-in-production",
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "publicClient": false,
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "mobile-app",
+      "name": "Mobile App (Flutter)",
+      "description": "Flutter mobile application",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "mobile-app-secret-change-in-production",
+      "redirectUris": [
+        "io.sahakar.mobile://oauth2redirect"
+      ],
+      "webOrigins": [],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "publicClient": false
+    }
+  ],
+  "groups": [
+    {
+      "name": "NCCT",
+      "path": "/NCCT",
+      "subGroups": [
+        {
+          "name": "VAMNICOM",
+          "path": "/NCCT/VAMNICOM"
+        },
+        {
+          "name": "RICMs",
+          "path": "/NCCT/RICMs",
+          "subGroups": [
+            { "name": "RICM Bangalore", "path": "/NCCT/RICMs/RICM Bangalore" },
+            { "name": "RICM Chandigarh", "path": "/NCCT/RICMs/RICM Chandigarh" },
+            { "name": "RICM Gandhinagar", "path": "/NCCT/RICMs/RICM Gandhinagar" },
+            { "name": "RICM Kalyani", "path": "/NCCT/RICMs/RICM Kalyani" },
+            { "name": "RICM Patna", "path": "/NCCT/RICMs/RICM Patna" }
+          ]
+        },
+        {
+          "name": "ICMs",
+          "path": "/NCCT/ICMs",
+          "subGroups": [
+            { "name": "ICM Chennai", "path": "/NCCT/ICMs/ICM Chennai" },
+            { "name": "ICM Dehradun", "path": "/NCCT/ICMs/ICM Dehradun" },
+            { "name": "ICM Guwahati", "path": "/NCCT/ICMs/ICM Guwahati" },
+            { "name": "ICM Hyderabad", "path": "/NCCT/ICMs/ICM Hyderabad" },
+            { "name": "ICM Imphal", "path": "/NCCT/ICMs/ICM Imphal" },
+            { "name": "ICM Jaipur", "path": "/NCCT/ICMs/ICM Jaipur" },
+            { "name": "ICM Kannur", "path": "/NCCT/ICMs/ICM Kannur" },
+            { "name": "ICM Lucknow", "path": "/NCCT/ICMs/ICM Lucknow" },
+            { "name": "ICM Madurai", "path": "/NCCT/ICMs/ICM Madurai" },
+            { "name": "ICM Nagpur", "path": "/NCCT/ICMs/ICM Nagpur" },
+            { "name": "ICM Pune", "path": "/NCCT/ICMs/ICM Pune" },
+            { "name": "ICM Trivandrum", "path": "/NCCT/ICMs/ICM Trivandrum" }
+          ]
+        }
+      ]
+    }
+  ],
+  "defaultRoles": ["trainee"],
+  "requiredCredentials": ["password"],
+  "passwordPolicy": "length(8) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1)",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": [
+    "FreeOTP",
+    "Google Authenticator",
+    "Microsoft Authenticator"
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xFrameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xRobotsTag": "none",
+    "xXSSProtection": "1; mode=block"
+  },
+  "smtpServer": {
+    "host": "localhost",
+    "port": "1025",
+    "from": "noreply@sahakar-setu.in",
+    "fromDisplayName": "Sahakar Setu",
+    "auth": "false",
+    "starttls": "false"
+  }
+}

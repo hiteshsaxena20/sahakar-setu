@@ -1,0 +1,334 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            services/api-gateway/package-lock.json
+            clients/web-admin/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16'
+          channel: 'stable'
+          cache: true
+
+      - name: Install API Gateway dependencies
+        run: |
+          cd services/api-gateway
+          npm ci
+
+      - name: Lint API Gateway
+        run: |
+          cd services/api-gateway
+          npm run lint
+
+      - name: Test API Gateway
+        run: |
+          cd services/api-gateway
+          npm test
+
+      - name: Install Web Admin dependencies
+        run: |
+          cd clients/web-admin
+          npm ci
+
+      - name: Lint Web Admin
+        run: |
+          cd clients/web-admin
+          npm run lint
+
+      - name: Type-check Web Admin
+        run: |
+          cd clients/web-admin
+          npm run typecheck
+
+      - name: Test Web Admin
+        run: |
+          cd clients/web-admin
+          npm test
+
+      - name: Install Python dependencies
+        run: |
+          for service in erp-service lms-service attendance-service employment-service analytics-service ai-service; do
+            if [ -f "services/$service/requirements.txt" ]; then
+              pip install -r "services/$service/requirements.txt"
+            fi
+          done
+
+      - name: Lint Python services
+        run: |
+          pip install ruff
+          for service in erp-service lms-service attendance-service employment-service analytics-service ai-service; do
+            if [ -d "services/$service/app" ]; then
+              ruff check "services/$service/app"
+            fi
+          done
+
+      - name: Type-check Python services
+        run: |
+          pip install mypy
+          for service in erp-service lms-service attendance-service employment-service analytics-service ai-service; do
+            if [ -d "services/$service/app" ]; then
+              mypy "services/$service/app" --ignore-missing-imports || true
+            fi
+          done
+
+      - name: Test Python services
+        run: |
+          for service in erp-service lms-service attendance-service employment-service analytics-service ai-service; do
+            if [ -f "services/$service/requirements.txt" ]; then
+              cd "services/$service"
+              pytest --tb=short -q || true
+              cd ../..
+            fi
+          done
+
+      - name: Get Flutter dependencies
+        run: |
+          cd clients/mobile
+          flutter pub get
+
+      - name: Analyze Flutter code
+        run: |
+          cd clients/mobile
+          flutter analyze
+
+      - name: Test Flutter
+        run: |
+          cd clients/mobile
+          flutter test
+
+      - name: Generate Flutter code
+        run: |
+          cd clients/mobile
+          flutter packages pub run build_runner build --delete-conflicting-outputs
+
+  build-docker:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for API Gateway
+        id: meta-api-gateway
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api-gateway
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/api-gateway
+          push: true
+          tags: ${{ steps.meta-api-gateway.outputs.tags }}
+          labels: ${{ steps.meta-api-gateway.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for ERP Service
+        id: meta-erp
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/erp-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push ERP Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/erp-service
+          push: true
+          tags: ${{ steps.meta-erp.outputs.tags }}
+          labels: ${{ steps.meta-erp.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for LMS Service
+        id: meta-lms
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/lms-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push LMS Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/lms-service
+          push: true
+          tags: ${{ steps.meta-lms.outputs.tags }}
+          labels: ${{ steps.meta-lms.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Attendance Service
+        id: meta-attendance
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/attendance-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push Attendance Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/attendance-service
+          push: true
+          tags: ${{ steps.meta-attendance.outputs.tags }}
+          labels: ${{ steps.meta-attendance.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Employment Service
+        id: meta-employment
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/employment-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push Employment Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/employment-service
+          push: true
+          tags: ${{ steps.meta-employment.outputs.tags }}
+          labels: ${{ steps.meta-employment.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Analytics Service
+        id: meta-analytics
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/analytics-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push Analytics Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/analytics-service
+          push: true
+          tags: ${{ steps.meta-analytics.outputs.tags }}
+          labels: ${{ steps.meta-analytics.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for AI Service
+        id: meta-ai
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ai-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push AI Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/ai-service
+          push: true
+          tags: ${{ steps.meta-ai.outputs.tags }}
+          labels: ${{ steps.meta-ai.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Web Admin
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web-admin
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push Web Admin
+        uses: docker/build-push-action@v5
+        with:
+          context: ./clients/web-admin
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build-docker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your staging deployment commands here
+          # e.g., kubectl apply -f k8s/staging/
+          # or docker-compose -f docker-compose.staging.yml up -d
+
+  deploy-production:
+    needs: build-docker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.name == 'sahakar-setu'
+    environment: production
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Add your production deployment commands here
+          # Requires manual approval in GitHub Environments

@@ -1,0 +1,324 @@
+version: '3.8'
+
+services:
+  # Infrastructure
+  mongodb:
+    image: mongo:7.0
+    container_name: sahakar-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-sahakar}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sahakar-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: sahakar-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: sahakar-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./services/auth-service/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      - keycloak-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: sahakar-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway (MERN)
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: sahakar-api-gateway
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: sahakar
+      KEYCLOAK_CLIENT_ID: api-gateway
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      REDIS_URL: redis://redis:6379
+      ERP_SERVICE_URL: http://erp-service:8001
+      LMS_SERVICE_URL: http://lms-service:8002
+      ATTENDANCE_SERVICE_URL: http://attendance-service:8003
+      EMPLOYMENT_SERVICE_URL: http://employment-service:8004
+      ANALYTICS_SERVICE_URL: http://analytics-service:8005
+      AI_SERVICE_URL: http://ai-service:8006
+    ports:
+      - "3000:3000"
+    depends_on:
+      - keycloak
+      - redis
+      - erp-service
+      - lms-service
+      - attendance-service
+      - employment-service
+      - analytics-service
+      - ai-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI Services (Python/AI-ML)
+  erp-service:
+    build:
+      context: ./services/erp-service
+      dockerfile: Dockerfile
+    container_name: sahakar-erp-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sahakar-files}
+      SERVICE_NAME: erp-service
+      PORT: 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  lms-service:
+    build:
+      context: ./services/lms-service
+      dockerfile: Dockerfile
+    container_name: sahakar-lms-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sahakar-files}
+      AI_SERVICE_URL: http://ai-service:8006
+      SERVICE_NAME: lms-service
+      PORT: 8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+      - ai-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  attendance-service:
+    build:
+      context: ./services/attendance-service
+      dockerfile: Dockerfile
+    container_name: sahakar-attendance-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sahakar-files}
+      ERP_SERVICE_URL: http://erp-service:8001
+      SERVICE_NAME: attendance-service
+      PORT: 8003
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+      - erp-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  employment-service:
+    build:
+      context: ./services/employment-service
+      dockerfile: Dockerfile
+    container_name: sahakar-employment-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sahakar-files}
+      AI_SERVICE_URL: http://ai-service:8006
+      SERVICE_NAME: employment-service
+      PORT: 8004
+    ports:
+      - "8004:8004"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+      - ai-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: sahakar-analytics-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      SERVICE_NAME: analytics-service
+      PORT: 8005
+    ports:
+      - "8005:8005"
+    depends_on:
+      - mongodb
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: sahakar-ai-service
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-sahakar}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sahakar-files}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BHASHINI_API_KEY: ${BHASHINI_API_KEY:-}
+      BHASHINI_PIPELINE_ID: ${BHASHINI_PIPELINE_ID:-}
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      PINECONE_INDEX: ${PINECONE_INDEX:-sahakar-embeddings}
+      SERVICE_NAME: ai-service
+      PORT: 8006
+    ports:
+      - "8006:8006"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web Admin (React) - not containerized for dev, but included for completeness
+  # web-admin:
+  #   build:
+  #     context: ./clients/web-admin
+  #     dockerfile: Dockerfile
+  #   container_name: sahakar-web-admin
+  #   environment:
+  #     VITE_API_GATEWAY_URL: http://localhost:3000
+  #     VITE_KEYCLOAK_URL: http://localhost:8080
+  #     VITE_KEYCLOAK_REALM: sahakar
+  #     VITE_KEYCLOAK_CLIENT_ID: web-admin
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - api-gateway
+  #     - keycloak
+
+volumes:
+  mongodb_data:
+  redis_data:
+  minio_data:
+  keycloak_db_data:
+
+networks:
+  default:
+    name: sahakar-network

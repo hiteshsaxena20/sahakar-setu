@@ -1,0 +1,257 @@
+# =============================================================================
+# Sahakar Setu — Monorepo .gitignore
+# Covers: Node/React (Vite), Python (FastAPI), Flutter, Docker, OS & Editors
+# =============================================================================
+
+
+# =============================================================================
+# SECRETS & ENVIRONMENT FILES
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+*_secret*
+*_credentials*
+
+
+# =============================================================================
+# NODE / NPM / YARN / PNPM  (clients/web-admin, packages/shared, api-gateway)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+lerna-debug.log*
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+.output/
+
+# Vite cache
+.vite/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Next.js (if added later)
+.next/
+.vercel/
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Misc JS tooling
+.eslintcache
+.stylelintcache
+.parcel-cache/
+
+
+# =============================================================================
+# PYTHON  (all services under services/)
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.venv*/
+
+# Distribution / build
+*.egg-info/
+.eggs/
+*.egg
+*.whl
+MANIFEST
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Celery beat schedule
+celerybeat-schedule
+celerybeat.pid
+
+# pyenv
+.python-version
+
+
+# =============================================================================
+# FLUTTER / DART  (clients/mobile)
+# =============================================================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+
+# iOS1
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+
+# =============================================================================
+# DATABASES & STORAGE
+# =============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+dump.sql
+*.sql.gz
+data/
+pgdata/
+mongo-data/
+redis-data/
+
+
+# =============================================================================
+# LOGS
+# =============================================================================
+logs/
+*.log
+*.log.*
+npm-debug.log*
+pip-log.txt
+pip-delete-this-directory.txt
+
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+
+# =============================================================================
+# EDITORS & IDEs
+# =============================================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.history/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+
+# =============================================================================
+# MISCELLANEOUS
+# =============================================================================
+*.crt
+*.cer
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# Vercel
+.vercel/
