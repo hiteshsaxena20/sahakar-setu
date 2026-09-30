@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import translations from '@shared/i18n/translations.json';
+import translations from './translations.json';
 
 const resources: Record<string, { translation: any }> = {};
 for (const [lang, data] of Object.entries(translations)) {
