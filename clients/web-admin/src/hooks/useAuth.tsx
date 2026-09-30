@@ -1,7 +1,25 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Cookies from 'js-cookie';
 import axios from 'axios';
+
+// ── Demo credentials (used when backend is unreachable e.g. on Vercel) ──────
+const DEMO_USERS: Record<string, { password: string; user: User }> = {
+  admin: {
+    password: 'admin',
+    user: { id: 'demo-admin', username: 'admin', email: 'admin@sahakar.dev', roles: ['admin'], firstName: 'Admin', lastName: 'User' }
+  },
+  trainer: {
+    password: 'password',
+    user: { id: 'demo-trainer', username: 'trainer', email: 'trainer@sahakar.dev', roles: ['trainer'], firstName: 'Demo', lastName: 'Trainer' }
+  },
+  trainee: {
+    password: 'password',
+    user: { id: 'demo-trainee', username: 'trainee', email: 'trainee@sahakar.dev', roles: ['trainee'], firstName: 'Demo', lastName: 'Trainee' }
+  }
+};
+
+const DEMO_TOKEN = 'demo-jwt-token-sahakar-setu';
 
 interface User {
   id: string;
@@ -48,6 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Restore demo session without hitting the network
+    if (token === DEMO_TOKEN) {
+      // Find which demo user was logged in by checking localStorage
+      const savedUsername = localStorage.getItem('demo_username');
+      const demo = savedUsername ? DEMO_USERS[savedUsername] : DEMO_USERS['admin'];
+      setUser(demo?.user ?? DEMO_USERS['admin'].user);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await api.get('/api/auth/me');
       setUser(response.data);
@@ -65,6 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, []);
 
+  const mockLogin = (username: string, password: string): boolean => {
+    const demo = DEMO_USERS[username.toLowerCase()];
+    if (demo && demo.password === password) {
+      const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      Cookies.set('access_token', DEMO_TOKEN, { expires: 1, secure: isSecure, sameSite: 'lax' });
+      localStorage.setItem('access_token', DEMO_TOKEN);
+      setUser(demo.user);
+      queryClient.invalidateQueries();
+      return true;
+    }
+    return false;
+  };
+
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
       const response = await api.post('/api/auth/login', { username, password });
@@ -81,7 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = async (username: string, password: string) => {
-    await loginMutation.mutateAsync({ username, password });
+    try {
+      await loginMutation.mutateAsync({ username, password });
+    } catch (err: any) {
+      // If network error or backend unreachable, try demo credentials
+      const isNetworkError = !err.response || err.response.status === 502 || err.response.status === 503 || err.response.status === 0;
+      if (isNetworkError) {
+        if (mockLogin(username, password)) return;
+        throw new Error('Invalid demo credentials. Use admin/admin, trainer/password, or trainee/password.');
+      }
+      throw err;
+    }
   };
 
   const logout = () => {

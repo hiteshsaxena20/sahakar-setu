@@ -53,8 +53,9 @@ export function Login() {
           <div className="card-body">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                  {error}
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm space-y-1">
+                  <p>{error}</p>
+                  <p className="text-xs text-red-500">Demo: <strong>admin / admin</strong> &nbsp;|&nbsp; trainer / password &nbsp;|&nbsp; trainee / password</p>
                 </div>
               )}
 
