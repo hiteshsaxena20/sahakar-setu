@@ -17,10 +17,8 @@ from app.models import (
     JobApplicationStatus
 )
 
-# Import shared types
-import sys
-sys.path.append('/app/../../packages/shared/types')
-from models import PaginationParams, PaginatedResponse, HealthResponse
+# Import shared types (from local copy)
+from app.shared_models import PaginationParams, PaginatedResponse, HealthResponse
 
 
 # Configuration
