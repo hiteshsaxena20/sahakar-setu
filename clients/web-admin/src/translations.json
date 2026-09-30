@@ -29,7 +29,8 @@
       "register": "Register",
       "dashboard": "Dashboard",
       "reports": "Reports",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "view_all": "View All"
     },
     "auth": {
       "login": "Login",
@@ -178,7 +179,9 @@
       "by_programme": "By Programme",
       "monthly": "Monthly",
       "quarterly": "Quarterly",
-      "yearly": "Yearly"
+      "yearly": "Yearly",
+      "recent_activity": "Recent Activity",
+      "avg_attendance": "Average Attendance"
     },
     "mobile": {
       "offline_mode": "Offline Mode",
