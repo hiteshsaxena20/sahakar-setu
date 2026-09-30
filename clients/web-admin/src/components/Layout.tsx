@@ -10,20 +10,20 @@ import { useState } from 'react';
 import i18n from '../i18n';
 
 const navigation = [
-  { name: 'dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['ncct_admin', 'institution_admin', 'trainer', 'trainee', 'employer', 'recruiter'] },
-  { name: 'programmes', href: '/programmes', icon: GraduationCap, roles: ['ncct_admin', 'institution_admin'] },
-  { name: 'nominations', href: '/nominations', icon: ClipboardCheck, roles: ['ncct_admin', 'institution_admin'] },
-  { name: 'trainees', href: '/trainees', icon: Users, roles: ['ncct_admin', 'institution_admin', 'trainer'] },
-  { name: 'courses', href: '/courses', icon: BookOpen, roles: ['ncct_admin', 'institution_admin', 'trainer', 'trainee'] },
-  { name: 'assessments', href: '/assessments', icon: ClipboardCheck, roles: ['ncct_admin', 'institution_admin', 'trainer'] },
-  { name: 'certificates', href: '/certificates', icon: Award, roles: ['ncct_admin', 'institution_admin', 'trainer', 'trainee'] },
-  { name: 'attendance', href: '/attendance', icon: Calendar, roles: ['ncct_admin', 'institution_admin', 'trainer'] },
-  { name: 'jobs', href: '/jobs', icon: Briefcase, roles: ['ncct_admin', 'institution_admin', 'employer', 'recruiter', 'trainee'] },
-  { name: 'applications', href: '/applications', icon: FileText, roles: ['ncct_admin', 'institution_admin', 'employer', 'recruiter', 'trainee'] },
-  { name: 'employers', href: '/employers', icon: Building2, roles: ['ncct_admin', 'institution_admin', 'recruiter'] },
-  { name: 'chatbot', href: '/chatbot', icon: MessageSquare, roles: ['trainee', 'ncct_admin', 'institution_admin', 'trainer'] },
-  { name: 'analytics', href: '/analytics', icon: BarChart3, roles: ['ncct_admin', 'institution_admin'] },
-  { name: 'settings', href: '/settings', icon: Settings, roles: ['ncct_admin', 'institution_admin', 'trainer', 'trainee', 'employer', 'recruiter'] },
+  { name: 'dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer', 'trainee', 'employer', 'recruiter'] },
+  { name: 'programmes', href: '/programmes', icon: GraduationCap, roles: ['admin', 'ncct_admin', 'institution_admin'] },
+  { name: 'nominations', href: '/nominations', icon: ClipboardCheck, roles: ['admin', 'ncct_admin', 'institution_admin'] },
+  { name: 'trainees', href: '/trainees', icon: Users, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer'] },
+  { name: 'courses', href: '/courses', icon: BookOpen, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer', 'trainee'] },
+  { name: 'assessments', href: '/assessments', icon: ClipboardCheck, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer'] },
+  { name: 'certificates', href: '/certificates', icon: Award, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer', 'trainee'] },
+  { name: 'attendance', href: '/attendance', icon: Calendar, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer'] },
+  { name: 'jobs', href: '/jobs', icon: Briefcase, roles: ['admin', 'ncct_admin', 'institution_admin', 'employer', 'recruiter', 'trainee'] },
+  { name: 'applications', href: '/applications', icon: FileText, roles: ['admin', 'ncct_admin', 'institution_admin', 'employer', 'recruiter', 'trainee'] },
+  { name: 'employers', href: '/employers', icon: Building2, roles: ['admin', 'ncct_admin', 'institution_admin', 'recruiter'] },
+  { name: 'chatbot', href: '/chatbot', icon: MessageSquare, roles: ['admin', 'trainee', 'ncct_admin', 'institution_admin', 'trainer'] },
+  { name: 'analytics', href: '/analytics', icon: BarChart3, roles: ['admin', 'ncct_admin', 'institution_admin'] },
+  { name: 'settings', href: '/settings', icon: Settings, roles: ['admin', 'ncct_admin', 'institution_admin', 'trainer', 'trainee', 'employer', 'recruiter'] },
 ];
 
 export function Layout() {
@@ -33,8 +33,11 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  const userRoles = (user?.roles && user.roles.length > 0 ? user.roles : ['admin', 'ncct_admin']).map(r => r.toLowerCase());
+  const isAdmin = userRoles.some(r => ['admin', 'ncct_admin', 'institution_admin'].includes(r));
+
   const filteredNav = navigation.filter(item => 
-    user?.roles.some(role => item.roles.includes(role))
+    isAdmin || userRoles.some(role => item.roles.map(r => r.toLowerCase()).includes(role))
   );
 
   const handleLogout = () => {
@@ -103,7 +106,7 @@ export function Layout() {
                   {user?.firstName || user?.username}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {user?.roles[0]?.replace('_', ' ')}
+                  {user?.roles?.[0] ? user.roles[0].replace('_', ' ') : 'Administrator'}
                 </p>
               </div>
             </div>
